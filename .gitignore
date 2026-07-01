@@ -1,5 +1,27 @@
-.venv/
-__pycache__/
-*.pyc
+# Raw data folders
+data/raw/
+gadm/
+gegis/
+marineregions/
+wdpa/
+gebco/
+copernicus-glc/
+global-power-plant-database/
+
+# Large geodata files
+*.gpkg
+*.geojson
+*.shp
+*.dbf
+*.shx
+*.prj
+*.cpg
+*.tif
+*.tiff
+*.zip
+*.7z
+*.rar
+
+# Keep local notebooks checkpoints and cache out
 .ipynb_checkpoints/
-data_raw/
+__pycache__/
