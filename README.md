@@ -55,3 +55,38 @@ Each teammate should download the data once from the TU cloud link and keep it l
 
 Processed files that are small enough to share are stored in `data_processed/`.  
 If a file is missing, re-run the preprocessing notebook to regenerate it.
+
+### Country Selection
+
+<img width="900" height="600" alt="image" src="https://github.com/user-attachments/assets/14256830-3265-47ae-910b-42b4183ca468" />
+
+### Layout of the project :sparkles:
+
+Here is a list about the steps we need to meet before handing out the project.
+
+### Data preparation for the model
+
+- Regions + centroids (+EEZ but Austria does not have see, so we dont do that)
+- Land eligibility + renewable potentials (Since we need the landeligibility data for patential calculations)
+- Weather (ERA5 + atlite + capacity factors)
+- Existing power plants + load + population + technology costs
+
+### Building the model
+
+It is a task by itself :)
+
+### Investigations
+
+Mandatory 
+
+-Run the model without a CO₂ emissions limit.
+-Run the model with 100% CO₂ emissions reduction (zero emissions).
+-Compare the two scenarios and describe how the electricity system changes
+
+We should choose one of the followings:
+
+-Grid Expansion
+-Technology Costs
+-Renewable Potentials
+-Nuclear Cost
+-Weather Year
