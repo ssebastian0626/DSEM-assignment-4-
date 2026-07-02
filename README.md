@@ -79,14 +79,14 @@ It is a task by itself :)
 
 Mandatory 
 
--Run the model without a CO₂ emissions limit.
--Run the model with 100% CO₂ emissions reduction (zero emissions).
--Compare the two scenarios and describe how the electricity system changes
+ - Run the model without a CO₂ emissions limit.
+ - Run the model with 100% CO₂ emissions reduction (zero emissions).
+ - Compare the two scenarios and describe how the electricity system changes
 
 We should choose one of the followings:
 
--Grid Expansion
--Technology Costs
--Renewable Potentials
--Nuclear Cost
--Weather Year
+ - Grid Expansion
+ - Technology Costs
+ - Renewable Potentials
+ - Nuclear Cost
+ - Weather Year
