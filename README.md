@@ -68,7 +68,7 @@ Here is a list about the steps we need to meet before handing out the project.
 
 - Regions + centroids (+EEZ but Austria does not have see, so we dont do that) - Done
 - Renewable Potentials: Land eligibility (Since we need the landeligibility data for patential calculations) - Done
-- Renewable Potentials: Weather (ERA5 + atlite) - Done + Wind and solar capacity factor time series - Irem working on it now
+- Renewable Potentials: Weather (ERA5 + atlite) - Done + Wind and solar capacity factor time series - Done
 - Existing power plants + load + population + technology costs
 
 ### Building the model
