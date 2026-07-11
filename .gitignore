@@ -25,3 +25,6 @@ global-power-plant-database/
 # Keep local notebooks checkpoints and cache out
 .ipynb_checkpoints/
 __pycache__/
+
+# Per-person path overrides (see src/local_paths.example.py)
+src/local_paths.py
