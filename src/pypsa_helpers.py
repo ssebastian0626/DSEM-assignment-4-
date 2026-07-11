@@ -1,4 +1,7 @@
-def solve_scenario(network, co2_limit=None, solver_name="highs", time_limit=3600, solver="ipm"):
+import pandas as pd
+
+
+def solve_scenario(network, co2_limit=None, solver_name="highs", time_limit=3600, solver="ipm", run_crossover=False):
     network = network.copy()
     if co2_limit is not None:
         network.add(
@@ -13,9 +16,16 @@ def solve_scenario(network, co2_limit=None, solver_name="highs", time_limit=3600
     # running indefinitely if the LP struggles to converge. solver="ipm" (interior-point)
     # instead of the default dual simplex: simplex was stalling on persistent primal
     # infeasibility for this large, mildly-degenerate capacity-expansion LP.
+    #
+    # run_crossover=False: IPM alone reaches an excellent solution (gap ~1e-12) in a
+    # fraction of the time, but HiGHS's crossover step (converting that to an exact basic
+    # solution) sometimes reports "imprecise" and falls back to a dual-simplex cleanup
+    # that can run for hours, blowing straight past time_limit (observed: 1137s for IPM
+    # alone vs. 7662s total once a bad crossover kicked in). We don't need an exact vertex
+    # solution for reporting capacities/dispatch, so skip crossover entirely.
     status, condition = network.optimize(
         solver_name=solver_name,
-        solver_options={"time_limit": time_limit, "solver": solver},
+        solver_options={"time_limit": time_limit, "solver": solver, "run_crossover": "off" if not run_crossover else "on"},
     )
     network.meta["status"] = status
     network.meta["termination_condition"] = condition
@@ -48,6 +58,18 @@ def total_co2(network):
     return dispatch.mul(weighting, axis=0).mul(em_per_mwh, axis=1).sum().sum()
 
 
+def scale_capital_cost(network, carrier, fraction):
+    """Return a copy of network with capital_cost scaled by `fraction` for every
+    Generator/Link/StorageUnit/Store whose carrier matches `carrier`. Used for technology
+    cost sensitivity sweeps (e.g. electrolysis capital cost at 100/75/50/25/0%)."""
+    network = network.copy()
+    for component in ["generators", "links", "storage_units", "stores"]:
+        df = getattr(network, component)
+        mask = df.carrier == carrier
+        df.loc[mask, "capital_cost"] = df.loc[mask, "capital_cost"] * fraction
+    return network
+
+
 def total_system_cost(network, cost_scale=1):
     """Total annualized system cost (EUR/yr), computed directly from capacities and
     dispatch rather than trusting network.objective (see require_optimal)."""
@@ -67,3 +89,83 @@ def total_system_cost(network, cost_scale=1):
     )
 
     return (capital + marginal) * cost_scale
+
+
+def cost_by_technology(network, cost_scale=1):
+    """Annualized system cost (EUR/yr) per carrier, split into capital and marginal cost."""
+    weighting = network.snapshot_weightings.generators
+
+    capital = pd.Series(dtype=float)
+    for component, nom_attr in [
+        ("generators", "p_nom_opt"),
+        ("storage_units", "p_nom_opt"),
+        ("links", "p_nom_opt"),
+        ("stores", "e_nom_opt"),
+    ]:
+        df = getattr(network, component)
+        cost = (df.capital_cost * df[nom_attr]).groupby(df.carrier).sum()
+        capital = capital.add(cost, fill_value=0)
+
+    marginal = (
+        network.generators_t.p.mul(weighting, axis=0)
+        .mul(network.generators.marginal_cost, axis=1)
+        .sum()
+        .groupby(network.generators.carrier)
+        .sum()
+    )
+
+    breakdown = pd.DataFrame({"capital_cost": capital, "marginal_cost": marginal}).fillna(0)
+    return breakdown * cost_scale
+
+
+def capacity_by_technology(network):
+    """Optimal built capacity per carrier (MW for generators/links/storage_units, MWh for
+    stores), across all component types."""
+    capacities = pd.Series(dtype=float)
+    for component, nom_attr in [
+        ("generators", "p_nom_opt"),
+        ("storage_units", "p_nom_opt"),
+        ("links", "p_nom_opt"),
+        ("stores", "e_nom_opt"),
+    ]:
+        df = getattr(network, component)
+        capacities = capacities.add(df.groupby("carrier")[nom_attr].sum(), fill_value=0)
+    return capacities
+
+
+def electricity_mix(network):
+    """Share of total electricity generation (%) by carrier."""
+    weighting = network.snapshot_weightings.generators
+    generation = (
+        network.generators_t.p.clip(lower=0)
+        .mul(weighting, axis=0)
+        .sum()
+        .groupby(network.generators.carrier)
+        .sum()
+    )
+    return generation / generation.sum() * 100
+
+
+def co2_shadow_price(network, cost_scale=1):
+    """EUR/tCO2 shadow price of the co2_limit GlobalConstraint (None if not present)."""
+    if "co2_limit" not in network.global_constraints.index:
+        return None
+    return abs(network.global_constraints.loc["co2_limit", "mu"]) * cost_scale
+
+
+def curtailment_rate(network, carriers=("onwind", "solar")):
+    """Curtailment rate (%) per carrier: (available - dispatched) / available, summed
+    over the year."""
+    gens = network.generators[network.generators.carrier.isin(carriers)]
+    available = (network.generators_t.p_max_pu[gens.index] * gens.p_nom_opt).clip(lower=1e-9)
+    dispatched = network.generators_t.p[gens.index]
+    curtailed = (available - dispatched).clip(lower=0)
+
+    per_carrier_curtailed = curtailed.sum().groupby(gens.carrier).sum()
+    per_carrier_available = available.sum().groupby(gens.carrier).sum()
+    return (per_carrier_curtailed / per_carrier_available * 100).fillna(0)
+
+
+def electricity_buses(network):
+    """Bus names for the electricity network only (excludes the H2 buses)."""
+    return network.buses[network.buses.carrier == "AC"].index
