@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def solve_scenario(network, co2_limit=None, solver_name="highs", time_limit=3600, solver="ipm", run_crossover=False):
+def solve_scenario(network, co2_limit=None, solver_name="highs", time_limit=3600, solver="ipm", run_crossover=False, ipm_optimality_tolerance=1e-8):
     network = network.copy()
     if co2_limit is not None:
         network.add(
@@ -23,9 +23,19 @@ def solve_scenario(network, co2_limit=None, solver_name="highs", time_limit=3600
     # that can run for hours, blowing straight past time_limit (observed: 1137s for IPM
     # alone vs. 7662s total once a bad crossover kicked in). We don't need an exact vertex
     # solution for reporting capacities/dispatch, so skip crossover entirely.
+    #
+    # ipm_optimality_tolerance: keep at the default (1e-8). Tried loosening to 1e-3 to
+    # save time - don't: HiGHS separately checks the P-D objective error against its own
+    # fixed 1e-7 tolerance regardless of this setting, so a looser value here just makes
+    # HiGHS downgrade the result to "Unknown" after the fact, wasting the whole solve.
     status, condition = network.optimize(
         solver_name=solver_name,
-        solver_options={"time_limit": time_limit, "solver": solver, "run_crossover": "off" if not run_crossover else "on"},
+        solver_options={
+            "time_limit": time_limit,
+            "solver": solver,
+            "run_crossover": "off" if not run_crossover else "on",
+            "ipm_optimality_tolerance": ipm_optimality_tolerance,
+        },
     )
     network.meta["status"] = status
     network.meta["termination_condition"] = condition
