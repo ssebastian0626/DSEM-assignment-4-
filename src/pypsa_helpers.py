@@ -143,6 +143,43 @@ def capacity_by_technology(network):
     return capacities
 
 
+def generation_by_technology(network):
+    """Actual annual energy delivered to the grid (MWh/yr) per carrier - the dispatch-side
+    counterpart to capacity_by_technology's nameplate MW. Idle installed capacity (e.g. an
+    existing CCGT fleet forced to zero by a CO2 cap) reads as zero here even though it still
+    counts as capacity there. Same demand-covering set as capacity_by_technology's
+    power_capacity_table (generators, battery discharge, H2 fuel cell output) - excludes H2
+    electrolysis (a load, not a source) and H2 store (energy, not power) since neither
+    delivers electricity to the grid; also excludes AC (transmission moves energy, it
+    doesn't generate it)."""
+    weighting = network.snapshot_weightings.generators
+
+    generation = (
+        network.generators_t.p.clip(lower=0)
+        .mul(weighting, axis=0)
+        .sum()
+        .groupby(network.generators.carrier)
+        .sum()
+    )
+
+    battery_discharge = (
+        network.storage_units_t.p.clip(lower=0)
+        .mul(weighting, axis=0)
+        .sum()
+        .groupby(network.storage_units.carrier)
+        .sum()
+    )
+
+    result = generation.add(battery_discharge, fill_value=0)
+
+    fc_links = network.links[network.links.carrier == "H2 fuel cell"].index
+    if len(fc_links):
+        fc_output = (-network.links_t.p1[fc_links]).clip(lower=0).mul(weighting, axis=0).sum().sum()
+        result = result.add(pd.Series({"H2 fuel cell": fc_output}), fill_value=0)
+
+    return result
+
+
 def electricity_mix(network):
     """Share of total electricity generation (%) by carrier."""
     weighting = network.snapshot_weightings.generators
