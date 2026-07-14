@@ -109,6 +109,14 @@ See `results/pypsa/`:
 - `sensitivity/` - the electrolysis capital cost sweep (the chosen "Technology Costs" deep-dive)
 - `h2_comparison/` - electrolysis vs. fuel cell cost-elasticity comparison
 
+## AI assistance
+
+Parts of this project (notebook code, helper functions, plotting, documentation) were written
+with the help of an AI assistant (Claude). All AI-generated code was manually reviewed before
+being relied on - checked against the assignment requirements, run, and compared to the expected
+model behavior - rather than accepted as-is. Modeling decisions, assumptions, and interpretation
+of the results are the author's own.
+
 ## License
 
 Code in this repository is MIT-licensed (see `LICENSE`). Third-party input datasets keep their
